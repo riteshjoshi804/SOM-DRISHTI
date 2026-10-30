@@ -1,0 +1,23 @@
+scene_id,preprocessing,mirrored_source,source_keypoints,reference_keypoints,ratio_filtered_matches,inliers,inlier_ratio,status,reasons,seconds
+OHRXXD18CHO2359602NNNN24342131250969_V1_0_03,clahe,False,11275,87573,530,0,0.0,FAILED,too few inliers: no transformation is supported by enough spatially distinct matches,7.065
+OHRXXD18CHO2359602NNNN24342131250969_V1_0_03,clahe,True,11262,87573,800,229,0.2863,SUCCESS,,7.342
+OHRXXD18CHO2436502NNNN25039175231280_V2_1_01,clahe,False,15997,65811,815,0,0.0,FAILED,too few inliers: no transformation is supported by enough spatially distinct matches,6.85
+OHRXXD18CHO2436502NNNN25039175231280_V2_1_01,clahe,True,15982,65811,731,0,0.0,FAILED,too few inliers: no transformation is supported by enough spatially distinct matches,6.631
+OHRXXD18CHO2436502NNNN25039175231280_V2_1_01,raw_normalized,False,15914,68061,798,0,0.0,FAILED,too few inliers: no transformation is supported by enough spatially distinct matches,7.139
+OHRXXD18CHO2436502NNNN25039175231280_V2_1_01,raw_normalized,True,15908,68061,788,0,0.0,FAILED,too few inliers: no transformation is supported by enough spatially distinct matches,6.991
+OHRXXD18CHO2436502NNNN25039175231280_V2_1_01,gradient,False,16328,64866,913,0,0.0,FAILED,too few inliers: no transformation is supported by enough spatially distinct matches,6.584
+OHRXXD18CHO2436502NNNN25039175231280_V2_1_01,gradient,True,16339,64866,857,0,0.0,FAILED,too few inliers: no transformation is supported by enough spatially distinct matches,6.492
+OHRXXD18CHO2436502NNNN25039175231280_V2_1_01,pooled(clahe+raw_normalized+gradient),False,48239,198738,2526,0,0.0,FAILED,too few inliers: no transformation is supported by enough spatially distinct matches,0.29
+OHRXXD18CHO2436502NNNN25039175231280_V2_1_01,pooled(clahe+raw_normalized+gradient),True,48229,198738,2376,0,0.0,FAILED,too few inliers: no transformation is supported by enough spatially distinct matches,0.291
+OHRXXD18CHO2470502NNNN25067152549847_V2_1_02,clahe,False,12898,67456,603,12,0.0199,FAILED,low spatial coverage (4.7% < 5.0%),5.999
+OHRXXD18CHO2470502NNNN25067152549847_V2_1_02,clahe,True,12870,67456,645,0,0.0,FAILED,too few inliers: no transformation is supported by enough spatially distinct matches,5.602
+OHRXXD18CHO2470502NNNN25067152549847_V2_1_02,raw_normalized,False,12100,68248,567,9,0.0159,FAILED,too few inliers (9 < 12); low spatial coverage (4.7% < 5.0%),5.404
+OHRXXD18CHO2470502NNNN25067152549847_V2_1_02,raw_normalized,True,12133,68248,639,0,0.0,FAILED,too few inliers: no transformation is supported by enough spatially distinct matches,5.452
+OHRXXD18CHO2470502NNNN25067152549847_V2_1_02,gradient,False,15001,66678,770,0,0.0,FAILED,too few inliers: no transformation is supported by enough spatially distinct matches,6.394
+OHRXXD18CHO2470502NNNN25067152549847_V2_1_02,gradient,True,14981,66678,771,0,0.0,FAILED,too few inliers: no transformation is supported by enough spatially distinct matches,6.381
+OHRXXD18CHO2470502NNNN25067152549847_V2_1_02,pooled(clahe+raw_normalized+gradient),False,39999,202382,1940,19,0.0098,LOW_CONFIDENCE,few inliers (19 < 30); low inlier ratio (0.98% < 5.00%); tie points cover little of the overlap (6.2% < 25.0%),0.029
+OHRXXD18CHO2736702NNNN25285183733061_V1_0_00,clahe,False,12251,60931,627,19,0.0303,LOW_CONFIDENCE,few inliers (19 < 30); low inlier ratio (3.03% < 5.00%); tie points cover little of the overlap (10.9% < 25.0%),4.607
+OHRXXD18CHO2736702NNNN25285183733061_V1_0_00,raw_normalized,False,11341,62089,547,15,0.0274,LOW_CONFIDENCE,few inliers (15 < 30); low inlier ratio (2.74% < 5.00%); tie points cover little of the overlap (7.8% < 25.0%),4.299
+OHRXXD18CHO2736702NNNN25285183733061_V1_0_00,gradient,False,15190,60224,676,6,0.0089,FAILED,too few inliers (6 < 12),5.815
+OHRXXD18CHO2736702NNNN25285183733061_V1_0_00,gradient,True,15165,60224,691,0,0.0,FAILED,too few inliers: no transformation is supported by enough spatially distinct matches,5.944
+OHRXXD18CHO2736702NNNN25285183733061_V1_0_00,pooled(clahe+raw_normalized+gradient),False,38782,183244,1850,32,0.0173,LOW_CONFIDENCE,low inlier ratio (1.73% < 5.00%); tie points cover little of the overlap (14.1% < 25.0%),0.034

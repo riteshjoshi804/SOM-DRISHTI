@@ -1,0 +1,21 @@
+# SOM DRISHTI backend - Python 3.11+
+# The benchmark CSVs in results/ were produced on Python 3.13.14 with the versions on the right.
+
+# Image processing
+numpy>=1.26                       # 2.5.3
+opencv-python-headless>=4.8       # 5.0.0 (SIFT + USAC_MAGSAC; also tested during development with 4.13)
+scipy>=1.11                       # 1.18.1
+
+# Geospatial (rasterio wheels bundle GDAL; no separate GDAL install is needed)
+rasterio>=1.3                     # 1.5.2 / GDAL 3.12.2
+pyproj>=3.6                       # 3.8.0
+
+# API
+fastapi>=0.110                    # 0.142.2
+uvicorn>=0.29                     # 0.54.0
+pydantic>=2.6                     # 2.13.5
+python-multipart>=0.0.9           # 0.0.32 (manual upload endpoint)
+
+# Tests
+pytest>=8.0                       # 9.1.1
+httpx>=0.27                       # 0.28.1 (FastAPI TestClient)

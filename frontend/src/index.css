@@ -1,0 +1,32 @@
+@import "tailwindcss";
+
+/* Tokens: dark chart/surface palette and the reserved status colours. */
+@theme {
+  --color-plane: #0d0d0d;
+  --color-surface: #1a1a19;
+  --color-surface-2: #232321;
+  --color-ink: #ffffff;
+  --color-ink-2: #c3c2b7;
+  --color-muted: #898781;
+  --color-grid: #2c2c2a;
+  --color-axis: #383835;
+  --color-accent: #3987e5;
+  --color-good: #0ca30c;
+  --color-warning: #fab219;
+  --color-critical: #d03b3b;
+  --font-sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--color-plane);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}

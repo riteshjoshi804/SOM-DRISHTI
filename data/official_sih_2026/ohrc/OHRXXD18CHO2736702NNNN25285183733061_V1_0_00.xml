@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="utf-8"?>
+<product>
+    <job_id>OHRXXD18CHO2736702NNNN25285183733061_V1_0_00</job_id>
+    <level0_dir_name>OHRXXD18CHO2736702NNNN25285183733061_V1_0_00</level0_dir_name>
+    <dop>12-Oct-2025</dop>
+    <station_id>D18</station_id>
+    <dumping_orbit_number>27367</dumping_orbit_number>
+    <imaging_orbit_number>27360</imaging_orbit_number>
+    <process>
+        <RadiometricCorrection>
+            <StartTime>2025-Oct-13 04:53:41.250468</StartTime>
+            <StopTime>2025-Oct-13 04:55:09.771456</StopTime>
+            <ElapsedTimeInSecs>88.52</ElapsedTimeInSecs>
+        </RadiometricCorrection>
+        <SelenoTagging>
+            <StartTime>2025-Oct-13 04:55:25.217784</StartTime>
+            <StopTime>2025-Oct-13 04:55:36.393044</StopTime>
+            <ElapsedTimeInSecs>11.15</ElapsedTimeInSecs>
+        </SelenoTagging>
+        <AutoLCP>
+            <StartTime>2025-Oct-13 04:55:25.217392</StartTime>
+        </AutoLCP>
+    </process>
+    <StartTime>2025-Oct-13 04:53:41.250522</StartTime>
+    <level0_dataset>OHRXXD18CHO2736702NNNN25285183733061_V1_0_00</level0_dataset>
+    <image_width>12000</image_width>
+    <data_type>unsigned char</data_type>
+    <integration_time_ms>162.100</integration_time_ms>
+    <pan>
+        <date_of_pass>20251012</date_of_pass>
+        <LUT_BitsSelection>msb</LUT_BitsSelection>
+        <LUT_TDIStages>TDI64</LUT_TDIStages>
+        <raw_no_of_pix>12000</raw_no_of_pix>
+        <raw_no_of_scan>101074</raw_no_of_scan>
+        <brw_raw_no_of_pix>500</brw_raw_no_of_pix>
+        <brw_raw_no_of_scan>4211</brw_raw_no_of_scan>
+        <rad_no_of_pix>12000</rad_no_of_pix>
+        <rad_no_of_scan>101074</rad_no_of_scan>
+        <brw_rad_no_of_scan>4211</brw_rad_no_of_scan>
+        <brw_rad_no_of_pix>500</brw_rad_no_of_pix>
+        <start_time_utc>2025-10-12T4:58:21.100114000</start_time_utc>
+        <stop_time_utc>2025-10-12T4:58:37.483739000</stop_time_utc>
+        <start_time_duration_sec>17901.100000</start_time_duration_sec>
+        <stop_time_duration_sec>17917.483000</stop_time_duration_sec>
+        <grid_no_of_records>122452</grid_no_of_records>
+        <grid_max_record_length>4</grid_max_record_length>
+        <grid_file_size>4255587</grid_file_size>
+        <corners>
+            <topleft_latitude>-84.569341</topleft_latitude>
+            <topleft_longitude>34.176418</topleft_longitude>
+            <topright_latitude>-84.596614</topright_latitude>
+            <topright_longitude>33.158067</topright_longitude>
+            <bottomleft_latitude>-83.763994</bottomleft_latitude>
+            <bottomleft_longitude>31.715108</bottomleft_longitude>
+            <bottomright_latitude>-83.787265</bottomright_latitude>
+            <bottomright_longitude>30.818093</bottomright_longitude>
+            <topleft_latitude_en>136605.381937</topleft_latitude_en>
+            <topleft_longitude_en>92754.752199</topleft_longitude_en>
+            <topright_latitude_en>137537.071687</topright_latitude_en>
+            <topright_longitude_en>89858.044978</topright_longitude_en>
+            <bottomleft_latitude_en>161330.506877</bottomleft_latitude_en>
+            <bottomleft_longitude_en>99698.528896</bottomleft_longitude_en>
+            <bottomright_latitude_en>162262.575621</bottomright_latitude_en>
+            <bottomright_longitude_en>96797.369038</bottomright_longitude_en>
+            <topleft_latitude>-84.569341</topleft_latitude>
+            <topleft_longitude>34.176418</topleft_longitude>
+            <topright_latitude>-84.596614</topright_latitude>
+            <topright_longitude>33.158067</topright_longitude>
+            <bottomleft_latitude>-83.763994</bottomleft_latitude>
+            <bottomleft_longitude>31.715108</bottomleft_longitude>
+            <bottomright_latitude>-83.787265</bottomright_latitude>
+            <bottomright_longitude>30.818093</bottomright_longitude>
+            <topleft_latitude_en>136605.381937</topleft_latitude_en>
+            <topleft_longitude_en>92754.752199</topleft_longitude_en>
+            <topright_latitude_en>137537.071687</topright_latitude_en>
+            <topright_longitude_en>89858.044978</topright_longitude_en>
+            <bottomleft_latitude_en>161330.506877</bottomleft_latitude_en>
+            <bottomleft_longitude_en>99698.528896</bottomleft_longitude_en>
+            <bottomright_latitude_en>162262.575621</bottomright_latitude_en>
+            <bottomright_longitude_en>96797.369038</bottomright_longitude_en>
+            <topleft_latitude_refined>-84.569341</topleft_latitude_refined>
+            <topleft_longitude_refined>34.176418</topleft_longitude_refined>
+            <topright_latitude_refined>-84.596614</topright_latitude_refined>
+            <topright_longitude_refined>33.158067</topright_longitude_refined>
+            <bottomleft_latitude_refined>-83.763994</bottomleft_latitude_refined>
+            <bottomleft_longitude_refined>31.715108</bottomleft_longitude_refined>
+            <bottomright_latitude_refined>-83.787265</bottomright_latitude_refined>
+            <bottomright_longitude_refined>30.818093</bottomright_longitude_refined>
+            <topleft_latitude_refined_en>136605.381937</topleft_latitude_refined_en>
+            <topleft_longitude_refined_en>92754.752199</topleft_longitude_refined_en>
+            <topright_latitude_refined_en>137537.071687</topright_latitude_refined_en>
+            <topright_longitude_refined_en>89858.044978</topright_longitude_refined_en>
+            <bottomleft_latitude_refined_en>161330.506877</bottomleft_latitude_refined_en>
+            <bottomleft_longitude_refined_en>99698.528896</bottomleft_longitude_refined_en>
+            <bottomright_latitude_refined_en>162262.575621</bottomright_latitude_refined_en>
+            <bottomright_longitude_refined_en>96797.369038</bottomright_longitude_refined_en>
+        </corners>
+        <statistics>
+            <minimum>0</minimum>
+            <maximum>255</maximum>
+            <mean>14.648821356135109</mean>
+            <standard_deviation>22.176528621924415</standard_deviation>
+            <minimum>0</minimum>
+            <maximum>255</maximum>
+            <mean>14.648821356135109</mean>
+            <standard_deviation>22.176528621924415</standard_deviation>
+        </statistics>
+        <grid_no_of_records>122452</grid_no_of_records>
+        <grid_max_record_length>4</grid_max_record_length>
+        <grid_file_size>4255587</grid_file_size>
+    </pan>
+    <spacecraft_altitude_in_km>91.86</spacecraft_altitude_in_km>
+    <Resolution_in_meter>0.23</Resolution_in_meter>
+    <Roll_in_degree>5.298260</Roll_in_degree>
+    <Pitch_in_degree>20.349658</Pitch_in_degree>
+    <Yaw_in_degree>0.011085</Yaw_in_degree>
+    <Sun_azimuth_in_degree>256.287883</Sun_azimuth_in_degree>
+    <Sun_elevation_in_degree>-0.305664</Sun_elevation_in_degree>
+    <Solar_incidence_angle_in_degree>90.305664</Solar_incidence_angle_in_degree>
+    <projection>Polar stereographic</projection>
+    <area>South Pole</area>
+    <ohr>
+        <grid_no_of_records>122452</grid_no_of_records>
+        <grid_max_record_length>4</grid_max_record_length>
+        <grid_file_size>4255587</grid_file_size>
+        <grid_no_of_records>122452</grid_no_of_records>
+        <grid_max_record_length>4</grid_max_record_length>
+        <grid_file_size>4255587</grid_file_size>
+    </ohr>
+    <orbit_limb_direction>Ascending</orbit_limb_direction>
+    <spacecraft_yaw_direction>True</spacecraft_yaw_direction>
+    <ReferenceUsed>System</ReferenceUsed>
+</product>

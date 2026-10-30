@@ -1,0 +1,25 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Node
+node_modules/
+frontend/dist/
+
+# Environment
+.env
+
+# Generated artifacts (reproducible with scripts/); benchmark CSVs are kept
+results/*
+!results/.gitkeep
+!results/*.csv
+
+# Official mentor dataset: large binaries, treated as read-only input
+data/official_sih_2026/**/*.tif
+
+# Editors / OS
+.vscode/
+Thumbs.db
+.DS_Store

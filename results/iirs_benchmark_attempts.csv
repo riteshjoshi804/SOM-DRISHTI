@@ -1,0 +1,14 @@
+scene_id,preprocessing,mirrored_source,source_keypoints,reference_keypoints,ratio_filtered_matches,inliers,inlier_ratio,status,reasons,seconds
+IIRXXD18CHO2686502NNNN25244140531312_V2_1,raw_normalized,False,16784,34392,881,0,0.0,FAILED,too few inliers: no transformation is supported by enough spatially distinct matches,3.207
+IIRXXD18CHO2686502NNNN25244140531312_V2_1,raw_normalized,True,16767,34392,952,0,0.0,FAILED,too few inliers: no transformation is supported by enough spatially distinct matches,3.129
+IIRXXD18CHO2686502NNNN25244140531312_V2_1,clahe,False,24771,49855,1130,0,0.0,FAILED,too few inliers: no transformation is supported by enough spatially distinct matches,6.793
+IIRXXD18CHO2686502NNNN25244140531312_V2_1,clahe,True,24756,49855,1088,0,0.0,FAILED,too few inliers: no transformation is supported by enough spatially distinct matches,8.038
+IIRXXD18CHO2686502NNNN25244140531312_V2_1,gradient,False,26881,49510,1434,0,0.0,FAILED,too few inliers: no transformation is supported by enough spatially distinct matches,9.932
+IIRXXD18CHO2686502NNNN25244140531312_V2_1,gradient,True,26855,49510,1425,0,0.0,FAILED,too few inliers: no transformation is supported by enough spatially distinct matches,8.651
+IIRXXD18CHO2686502NNNN25244140531312_V2_1,pooled(raw_normalized+clahe+gradient),False,68436,133757,3445,0,0.0,FAILED,too few inliers: no transformation is supported by enough spatially distinct matches,0.387
+IIRXXD18CHO2686502NNNN25244140531312_V2_1,pooled(raw_normalized+clahe+gradient),True,68378,133757,3465,0,0.0,FAILED,too few inliers: no transformation is supported by enough spatially distinct matches,0.364
+IIRXXD32CHO1519402NNNN23022110758606_V1_1_01,raw_normalized,False,4853,67573,357,23,0.0644,LOW_CONFIDENCE,few inliers (23 < 30); tie points cover little of the overlap (14.1% < 25.0%),2.054
+IIRXXD32CHO1519402NNNN23022110758606_V1_1_01,clahe,False,5689,66977,372,9,0.0242,FAILED,too few inliers (9 < 12),2.676
+IIRXXD32CHO1519402NNNN23022110758606_V1_1_01,clahe,True,5707,66977,327,0,0.0,FAILED,too few inliers: no transformation is supported by enough spatially distinct matches,2.716
+IIRXXD32CHO1519402NNNN23022110758606_V1_1_01,gradient,False,9351,66460,549,20,0.0364,LOW_CONFIDENCE,few inliers (20 < 30); low inlier ratio (3.64% < 5.00%); tie points cover little of the overlap (12.5% < 25.0%),3.723
+IIRXXD32CHO1519402NNNN23022110758606_V1_1_01,pooled(raw_normalized+clahe+gradient),False,19893,201010,1278,43,0.0336,LOW_CONFIDENCE,low inlier ratio (3.36% < 5.00%); tie points cover little of the overlap (17.2% < 25.0%),0.016
