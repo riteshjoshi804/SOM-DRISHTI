@@ -1,0 +1,3 @@
+# The official mentor dataset is read-only input: Git must never rewrite its line endings,
+# or a checkout would change the bytes of the XML files.
+data/** -text

@@ -31,6 +31,15 @@ def find_scene(key: str, data_dir: str = str(DATA_ROOT)) -> SceneRecord:
 
 def build_config(args: argparse.Namespace) -> PipelineConfig:
     cfg = PipelineConfig()
+    if getattr(args, "matcher", None):
+        cfg.matcher = args.matcher
+    if getattr(args, "representation", None):
+        cfg.preprocessing_modes = [args.representation]
+        cfg.guided.representation = args.representation
+    if getattr(args, "device", None):
+        cfg.device = args.device
+    if getattr(args, "refinement", None):
+        cfg.refinement.strategy = args.refinement
     if args.modes:
         cfg.preprocessing_modes = [m.strip() for m in args.modes.split(",")]
     if args.ratio is not None:
@@ -59,7 +68,11 @@ def build_config(args: argparse.Namespace) -> PipelineConfig:
 
 def add_pipeline_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--data-dir", default=str(DATA_ROOT))
-    parser.add_argument("--modes", help="Comma list of raw_normalized,clahe,gradient")
+    parser.add_argument("--matcher", choices=["AUTO", "SIFT", "SUPERPOINT_LIGHTGLUE", "LOFTR", "RIFT"], help="Default: SIFT")
+    parser.add_argument("--representation", help="raw_normalized, clahe, gradient, structural, phase_congruency or shadow_aware")
+    parser.add_argument("--device", help="auto, cpu or cuda (learned matchers only)")
+    parser.add_argument("--refinement", choices=["ncc", "lucas_kanade", "ecc", "phase", "none"], help="Sub-pixel refinement strategy")
+    parser.add_argument("--modes", help="Comma list of representations SIFT tries")
     parser.add_argument("--ratio", type=float, help="Lowe ratio threshold")
     parser.add_argument("--model", choices=["auto", "affine", "homography", "similarity"])
     parser.add_argument("--method", choices=["ransac", "magsac"])
@@ -85,6 +98,7 @@ def print_result(result: RegistrationResult) -> None:
         print(f"  failure : {reason}")
     for warning in result.warnings:
         print(f"  warning : {warning}")
+    print(f"  matcher                   : {fmt(m.matcher)} on {fmt(m.device)}")
     print(f"  preprocessing used        : {result.selected_preprocessing}")
     print(f"  source / reference kp     : {fmt(m.source_keypoints)} / {fmt(m.reference_keypoints)}")
     print(f"  raw candidate matches     : {fmt(m.raw_matches)}")
@@ -108,6 +122,20 @@ def print_result(result: RegistrationResult) -> None:
               + (f" ({c.centre_offset_m / 1000:.2f} km)" if c.centre_offset_m is not None else "")
               + f", rotation diff {c.rotation_difference_deg:.2f} deg, scale ratio {c.scale_ratio:.3f},"
               + f" orientation {'agrees' if c.orientation_agrees else 'DIFFERS'}")
+    if result.holdout:
+        h = result.holdout
+        print(f"  held-out (not ground truth): RMSE {fmt(h.heldout_transfer_rmse_px)}  median {fmt(h.heldout_median_px)}  p90 {fmt(h.heldout_p90_px)}  unseen blocks RMSE {fmt(h.block_rmse_px)}")
+    if result.tie_points:
+        t = result.tie_points
+        print(f"  tie points selected       : {t.selected} of {t.verified_inliers}, overlap coverage {fmt(t.overlap_coverage)}, distribution {fmt(t.distribution_score)}")
+    if result.refinement:
+        r = result.refinement
+        v = result.refinement_validation or {}
+        print(f"  sub-pixel refinement      : {r.refined} refined, {r.rejected} rejected, median shift {fmt(r.median_displacement_px)} px")
+        if v.get("status") == "ok":
+            print(f"      held-out median initial -> refined: {fmt(v['initial_median_px'])} -> {fmt(v['refined_median_px'])} px (improved: {v['improved']})")
+    if result.decoys:
+        print("  decoy controls            : " + ", ".join(f"{d.kind} {d.inliers} inliers" for d in result.decoys))
     print(f"  processing time           : {fmt(m.processing_time_seconds, 1)} s")
     print("  attempts:")
     for a in result.attempts:

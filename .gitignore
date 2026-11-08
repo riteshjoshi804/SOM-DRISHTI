@@ -23,3 +23,6 @@ data/official_sih_2026/**/*.tif
 .vscode/
 Thumbs.db
 .DS_Store
+
+# Pretrained model weights (downloaded from their official sources, see docs/)
+models/

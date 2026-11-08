@@ -3,6 +3,7 @@ import { api } from '../api.js'
 import { NA, deg, int, num, pct, withUnit } from '../format.js'
 import Histogram from '../components/Histogram.jsx'
 import { Button, Card, ErrorNote, ImagePanel, KeyValue, Loading, SectionTitle } from '../components/ui.jsx'
+import { RunOptions, useRunOptions } from '../components/RunOptions.jsx'
 import { useRunScene } from './Scenes.jsx'
 
 function crsName(wkt) {
@@ -76,7 +77,8 @@ function CornerTable({ meta }) {
 export default function SceneDetail({ sceneId }) {
   const [detail, setDetail] = useState(null)
   const [error, setError] = useState(null)
-  const { run, busy, error: runError } = useRunScene()
+  const { options, update, matchers } = useRunOptions()
+  const { run, busy, error: runError } = useRunScene(options)
 
   useEffect(() => {
     api.scene(sceneId).then(setDetail).catch(setError)
@@ -99,6 +101,9 @@ export default function SceneDetail({ sceneId }) {
         </Button>
       </div>
       <ErrorNote error={error || runError} />
+      <Card className="mt-4">
+        <RunOptions options={options} update={update} matchers={matchers} />
+      </Card>
       {!detail && !error && <Loading what="Loading rasters and metadata (first load can take a few seconds)" />}
       {detail && (
         <>
@@ -164,6 +169,32 @@ export default function SceneDetail({ sceneId }) {
               <p className="text-sm text-muted">Cannot be predicted: the reference has no geotransform or the XML has no corners.</p>
             )}
           </Card>
+
+          {detail.overlap_estimate && (
+            <>
+              <SectionTitle hint="Where a learned matcher will look, with a safety margin; a prior, not a result">Estimated overlap and search region</SectionTitle>
+              <Card>
+                <KeyValue
+                  rows={[
+                    ['Search', detail.overlap_estimate.mode === 'metadata' ? 'around the metadata footprint' : 'the whole reference'],
+                    ['Why', detail.overlap_estimate.reason],
+                    ['Reference body (from its CRS)', detail.overlap_estimate.coordinate_system?.body ?? NA],
+                    [
+                      'CRS kind / projection / units',
+                      detail.overlap_estimate.coordinate_system
+                        ? `${detail.overlap_estimate.coordinate_system.crs_kind} / ${detail.overlap_estimate.coordinate_system.projection ?? NA} / ${detail.overlap_estimate.coordinate_system.units ?? NA}`
+                        : NA,
+                    ],
+                    ['Search radius', withUnit(detail.overlap_estimate.search_radius_px, 'px', 0)],
+                    ['Search region on the reference (x0, y0, x1, y1)', detail.overlap_estimate.search_bbox_px?.join(', ') ?? NA],
+                    ['Prior footprint inside the reference', pct(detail.overlap_estimate.footprint_fraction_in_reference)],
+                    ['Prior footprint on valid pixels', pct(detail.overlap_estimate.footprint_fraction_on_valid_reference)],
+                    ...detail.overlap_estimate.warnings.map((w, i) => [`Note ${i + 1}`, w]),
+                  ]}
+                />
+              </Card>
+            </>
+          )}
         </>
       )}
     </div>

@@ -14,6 +14,11 @@
   --color-good: #0ca30c;
   --color-warning: #fab219;
   --color-critical: #d03b3b;
+  /* Matcher identity, always in this order; validated for this surface as adjacent pairs (CVD >= 8). */
+  --color-series-1: #3987e5;
+  --color-series-2: #d95926;
+  --color-series-3: #199e70;
+  --color-series-4: #c98500;
   --font-sans: system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 

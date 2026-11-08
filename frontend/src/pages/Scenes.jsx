@@ -3,15 +3,16 @@ import { api } from '../api.js'
 import { go } from '../nav.js'
 import { NA, deg, withUnit } from '../format.js'
 import { Button, Card, ErrorNote, KeyValue, Loading, SectionTitle } from '../components/ui.jsx'
+import { RunOptions, runConfig, useRunOptions } from '../components/RunOptions.jsx'
 
-export function useRunScene() {
+export function useRunScene(options) {
   const [busy, setBusy] = useState(null)
   const [error, setError] = useState(null)
   const run = async (sceneId) => {
     setBusy(sceneId)
     setError(null)
     try {
-      const job = await api.register(sceneId)
+      const job = await api.register(sceneId, runConfig(options))
       go(`/results/${encodeURIComponent(job.job_id)}`)
     } catch (e) {
       setError(e)
@@ -54,7 +55,7 @@ function SceneCard({ s, onRun, busy }) {
   )
 }
 
-function UploadForm() {
+function UploadForm({ options }) {
   const [error, setError] = useState(null)
   const [busy, setBusy] = useState(false)
   const submit = async (e) => {
@@ -62,7 +63,10 @@ function UploadForm() {
     setBusy(true)
     setError(null)
     try {
-      const job = await api.upload(new FormData(e.currentTarget))
+      const form = new FormData(e.currentTarget)
+      form.set('matcher', options.matcher)
+      if (options.representation) form.set('representation', options.representation)
+      const job = await api.upload(form)
       go(`/results/${encodeURIComponent(job.job_id)}`)
     } catch (err) {
       setError(err)
@@ -91,7 +95,10 @@ function UploadForm() {
         </Button>
       </form>
       <ErrorNote error={error} />
-      <p className="mt-3 text-xs text-muted">Uploads are stored under results/uploads/. The official dataset is never modified.</p>
+      <p className="mt-3 text-xs text-muted">
+        Uploads are stored under results/uploads/. The official dataset is never modified. Without XML metadata a learned matcher has to search every
+        orientation over the whole reference, which is slow and may run out of its search budget.
+      </p>
     </Card>
   )
 }
@@ -99,7 +106,8 @@ function UploadForm() {
 export default function Scenes() {
   const [scenes, setScenes] = useState(null)
   const [error, setError] = useState(null)
-  const { run, busy, error: runError } = useRunScene()
+  const { options, update, matchers } = useRunOptions()
+  const { run, busy, error: runError } = useRunScene(options)
 
   useEffect(() => {
     api.scenes().then(setScenes).catch(setError)
@@ -113,6 +121,10 @@ export default function Scenes() {
         Scenes are discovered automatically by pairing each XML with its source and reference TIFF.
       </p>
       <ErrorNote error={error || runError} />
+      <SectionTitle hint="Applies to every RUN button and to uploads">Registration options</SectionTitle>
+      <Card>
+        <RunOptions options={options} update={update} matchers={matchers} />
+      </Card>
       {!scenes && !error && <Loading what="Reading dataset" />}
       {scenes?.length === 0 && <p className="mt-6 text-sm text-muted">No complete scenes were found.</p>}
       {groups.map((sensor) => (
@@ -128,7 +140,7 @@ export default function Scenes() {
         </div>
       ))}
       <SectionTitle hint="For your own source/reference pairs">Manual upload</SectionTitle>
-      <UploadForm />
+      <UploadForm options={options} />
     </div>
   )
 }

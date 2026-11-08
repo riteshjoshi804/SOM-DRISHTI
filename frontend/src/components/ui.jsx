@@ -6,6 +6,7 @@ const STATUS = {
   FAILED: { icon: '✕', label: 'Failed', cls: 'border-critical/60 text-critical bg-critical/10' },
   queued: { icon: '…', label: 'Queued', cls: 'border-white/20 text-ink-2 bg-white/5' },
   running: { icon: '◌', label: 'Running', cls: 'border-accent/60 text-accent bg-accent/10' },
+  UNAVAILABLE: { icon: '–', label: 'Unavailable', cls: 'border-white/20 text-muted bg-white/5' },
 }
 
 export function StatusBadge({ status, className = '' }) {

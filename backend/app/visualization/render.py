@@ -152,6 +152,85 @@ def draw_footprint(
     return canvas
 
 
+def draw_tie_points(
+    src_display: np.ndarray,
+    inliers: np.ndarray,
+    selected: np.ndarray,
+    grid_rows: int,
+    grid_cols: int,
+    overlap_mask: np.ndarray | None,
+    cfg: VisualizationConfig,
+) -> np.ndarray:
+    """Source with the grid, the valid-overlap boundary, all inliers (red) and selected tie points (green)."""
+    h, w = src_display.shape
+    scale = fit_scale(w, h, cfg.max_side_px)
+    canvas = _bgr(_resize(src_display, scale))
+    ch, cw = canvas.shape[:2]
+    for y in np.linspace(0, ch, grid_rows + 1).round().astype(int):
+        cv2.line(canvas, (0, min(y, ch - 1)), (cw - 1, min(y, ch - 1)), (150, 150, 150), 1)
+    for x in np.linspace(0, cw, grid_cols + 1).round().astype(int):
+        cv2.line(canvas, (min(x, cw - 1), 0), (min(x, cw - 1), ch - 1), (150, 150, 150), 1)
+    if overlap_mask is not None:
+        small = cv2.resize(overlap_mask.astype(np.uint8), (cw, ch), interpolation=cv2.INTER_NEAREST)
+        contours, _ = cv2.findContours(small, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        cv2.drawContours(canvas, contours, -1, CYAN, 2, cv2.LINE_AA)
+    for x, y in np.asarray(inliers).reshape(-1, 2) * scale:
+        cv2.circle(canvas, (int(round(x)), int(round(y))), 2, RED, -1, cv2.LINE_AA)
+    for x, y in np.asarray(selected).reshape(-1, 2) * scale:
+        cv2.circle(canvas, (int(round(x)), int(round(y))), 5, GREEN, -1, cv2.LINE_AA)
+        cv2.circle(canvas, (int(round(x)), int(round(y))), 5, (0, 0, 0), 1, cv2.LINE_AA)
+    return canvas
+
+
+def footprint_crop(quad: np.ndarray, shape: tuple[int, int]) -> tuple[int, int, int, int]:
+    """Bounding box (x0, y0, x1, y1) of a footprint on the reference, with a small margin."""
+    h, w = shape
+    margin = 0.06 * max(np.ptp(quad[:, 0]), np.ptp(quad[:, 1]))
+    x0 = int(np.clip(np.floor(quad[:, 0].min() - margin), 0, w - 1))
+    x1 = int(np.clip(np.ceil(quad[:, 0].max() + margin), x0 + 1, w))
+    y0 = int(np.clip(np.floor(quad[:, 1].min() - margin), 0, h - 1))
+    y1 = int(np.clip(np.ceil(quad[:, 1].max() + margin), y0 + 1, h))
+    return x0, y0, x1, y1
+
+
+def make_checkerboard(
+    ref_display: np.ndarray,
+    registered: np.ndarray,
+    registered_mask: np.ndarray,
+    quad: np.ndarray,
+    cfg: VisualizationConfig,
+    squares: int = 12,
+) -> np.ndarray:
+    """Alternating squares of reference and registered source: terrain should continue across edges."""
+    x0, y0, x1, y1 = footprint_crop(quad, ref_display.shape)
+    ref, reg, mask = ref_display[y0:y1, x0:x1], registered[y0:y1, x0:x1], registered_mask[y0:y1, x0:x1]
+    size = max(16, int(min(ref.shape) / squares))
+    yy, xx = np.mgrid[0 : ref.shape[0], 0 : ref.shape[1]]
+    pick_source = (((yy // size) + (xx // size)) % 2 == 0) & mask
+    board = np.where(pick_source, reg, (ref * np.where(mask, 1.0, 0.45)).astype(np.uint8))
+    return _resize(board, fit_scale(board.shape[1], board.shape[0], cfg.max_side_px))
+
+
+def aligned_crops(
+    ref_display: np.ndarray,
+    registered: np.ndarray,
+    registered_mask: np.ndarray,
+    quad: np.ndarray,
+    cfg: VisualizationConfig,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Same crop of the reference and the registered source, for an interactive alpha overlay.
+
+    The registered image carries its valid mask as an alpha channel, so that blending in the
+    browser shows the reference wherever the source has no data.
+    """
+    x0, y0, x1, y1 = footprint_crop(quad, ref_display.shape)
+    scale = fit_scale(x1 - x0, y1 - y0, cfg.max_side_px)
+    ref = _resize(ref_display[y0:y1, x0:x1], scale)
+    reg = _resize(registered[y0:y1, x0:x1], scale)
+    alpha = _resize(registered_mask[y0:y1, x0:x1].astype(np.uint8) * 255, scale)
+    return ref, np.dstack([reg, reg, reg, alpha])
+
+
 def make_overlay(
     ref_display: np.ndarray,
     registered: np.ndarray,
@@ -164,12 +243,7 @@ def make_overlay(
     Terrain that lines up appears grey; misalignment shows as red/cyan fringes.
     Outside the registered footprint the reference is shown dimmed.
     """
-    h, w = ref_display.shape
-    margin = 0.06 * max(np.ptp(quad[:, 0]), np.ptp(quad[:, 1]))
-    x0 = int(np.clip(np.floor(quad[:, 0].min() - margin), 0, w - 1))
-    x1 = int(np.clip(np.ceil(quad[:, 0].max() + margin), x0 + 1, w))
-    y0 = int(np.clip(np.floor(quad[:, 1].min() - margin), 0, h - 1))
-    y1 = int(np.clip(np.ceil(quad[:, 1].max() + margin), y0 + 1, h))
+    x0, y0, x1, y1 = footprint_crop(quad, ref_display.shape)
     ref, reg, mask = ref_display[y0:y1, x0:x1], registered[y0:y1, x0:x1], registered_mask[y0:y1, x0:x1]
     dim = (ref * 0.45).astype(np.uint8)
     overlay = np.dstack([np.where(mask, reg, dim), np.where(mask, reg, dim), np.where(mask, ref, dim)])

@@ -4,6 +4,7 @@ import Scenes from './pages/Scenes.jsx'
 import SceneDetail from './pages/SceneDetail.jsx'
 import Results from './pages/Results.jsx'
 import ResultDetail from './pages/ResultDetail.jsx'
+import Benchmark from './pages/Benchmark.jsx'
 import Methodology from './pages/Methodology.jsx'
 
 // Hash routing keeps deep links working whether the app is served by Vite or by FastAPI.
@@ -25,6 +26,7 @@ const NAV = [
   ['', 'Dashboard'],
   ['scenes', 'Dataset / Scenes'],
   ['results', 'Registration Results'],
+  ['benchmark', 'Benchmark'],
   ['methodology', 'Methodology'],
 ]
 
@@ -35,6 +37,7 @@ export default function App() {
   else if (section === 'scenes') page = <Scenes />
   else if (section === 'results' && id) page = <ResultDetail jobId={id} />
   else if (section === 'results') page = <Results />
+  else if (section === 'benchmark') page = <Benchmark />
   else if (section === 'methodology') page = <Methodology />
   else page = <Dashboard />
 
@@ -66,7 +69,7 @@ export default function App() {
       </header>
       <main className="mx-auto max-w-7xl px-4 pb-16 pt-6 sm:px-6">{page}</main>
       <footer className="border-t border-white/10 py-6 text-center text-xs text-muted">
-        SIH 2026 · Problem statement SIH26166 · ISRO / Department of Space · Classical SIFT MVP
+        SIH 2026 · Problem statement SIH26166 · ISRO / Department of Space
       </footer>
     </div>
   )

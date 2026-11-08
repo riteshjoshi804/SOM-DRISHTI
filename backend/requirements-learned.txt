@@ -1,0 +1,17 @@
+# Optional: the learned matchers (SuperPoint + LightGlue, LoFTR). The classical SIFT pipeline,
+# the API and the frontend run without these.
+#
+#   CPU:   python -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+#   GPU:   see https://pytorch.org/get-started/locally/ for the build matching your CUDA version
+#   Then:  python -m pip install -r backend\requirements-learned.txt
+#
+# Versions on the right are the ones every published result was produced with (Python 3.13.14).
+# Weights are not in Git: they download to models/ on first use, from the sources in
+# backend/app/matching/models.py. SuperPoint's weights are licensed for academic or non-profit,
+# noncommercial research use only (Magic Leap); LightGlue and LoFTR are Apache-2.0.
+
+torch>=2.6                        # 2.15.0+cpu
+torchvision>=0.21                 # 0.29.2+cpu
+kornia>=0.8                       # 0.9.0 (LightGlue, LoFTR)
+transformers>=5.0                 # 5.22.1 (SuperPoint)
+safetensors>=0.4                  # 0.8.0

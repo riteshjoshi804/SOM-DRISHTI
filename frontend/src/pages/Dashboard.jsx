@@ -126,6 +126,7 @@ export default function Dashboard() {
               <tr>
                 <th className="px-4 py-2 font-medium">Scene</th>
                 <th className="px-4 py-2 font-medium">Status</th>
+                <th className="px-4 py-2 font-medium">Matcher</th>
                 <th className="px-4 py-2 text-right font-medium">Candidates</th>
                 <th className="px-4 py-2 text-right font-medium">Inliers</th>
                 <th className="px-4 py-2 text-right font-medium">Reproj. RMSE (px)</th>
@@ -144,6 +145,7 @@ export default function Dashboard() {
                   <td className="px-4 py-2">
                     <StatusBadge status={m?.registration_status || job.status} />
                   </td>
+                  <td className="px-4 py-2 text-ink-2">{m?.metrics?.matcher ? m.metrics.matcher.replace('_', ' + ') : 'SIFT'}</td>
                   <td className="px-4 py-2 text-right">{int(m?.metrics?.ratio_filtered_matches)}</td>
                   <td className="px-4 py-2 text-right">{int(m?.metrics?.inliers)}</td>
                   <td className="px-4 py-2 text-right">{num(m?.metrics?.reprojection_rmse_px)}</td>

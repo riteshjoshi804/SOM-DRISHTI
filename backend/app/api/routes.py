@@ -6,27 +6,34 @@ import re
 import shutil
 import threading
 from pathlib import Path
+from typing import Literal
 
 import cv2
-from fastapi import APIRouter, Body, File, HTTPException, UploadFile
-from fastapi.responses import FileResponse
+import numpy as np
+from fastapi import APIRouter, Body, File, Form, HTTPException, Query, Response, UploadFile
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel, ValidationError
 
 from app import config
 from app.api.jobs import JobManager, JobState, merge_config
+from app.evaluation.validation import ControlPoint, ControlPointEvaluation, parse_control_points
 from app.ingestion.indexer import SceneRecord, discover_scenes
 from app.ingestion.raster import RasterInfo, RasterStats, compute_stats, load_raster, read_raster_info
+from app.matching.base import MatcherStatus
+from app.matching.registry import matcher_statuses
 from app.metadata.georef import PredictedFootprint, predict_footprint
+from app.metadata.overlap import OverlapEstimate, estimate_overlap
 from app.metadata.xml_parser import SceneMetadata, parse_scene_xml
 from app.preprocessing.pipeline import percentile_normalize
 from app.registration import store
+from app.registration.control import add_control_points, render_chip, zip_job
 from app.registration.engine import register, register_scene
 from app.visualization.render import fit_scale, save_image
 
 router = APIRouter()
 jobs = JobManager()
 
-ARTIFACT_NAME = re.compile(r"^[A-Za-z0-9_.-]+\.(jpg|jpeg|png|tif|tiff|json)$")
+ARTIFACT_NAME = re.compile(r"^[A-Za-z0-9_.-]+\.(jpg|jpeg|png|tif|tiff|json|csv|md|html)$")
 _detail_cache: dict[str, dict] = {}
 _detail_lock = threading.Lock()
 
@@ -58,6 +65,7 @@ class SceneDetail(BaseModel):
     source_stats: RasterStats
     reference_stats: RasterStats
     predicted_footprint: PredictedFootprint | None
+    overlap_estimate: OverlapEstimate | None = None
 
 
 def _index():
@@ -123,6 +131,7 @@ def scene_detail(scene_id: str) -> SceneDetail:
     if cached is None:
         meta = parse_scene_xml(scene.xml_path)
         src, ref = load_raster(scene.source_path), load_raster(scene.reference_path)
+        defaults = config.PipelineConfig()
         cached = SceneDetail(
             scene=scene,
             summary=_summary(scene, meta, src.info, ref.info),
@@ -132,6 +141,7 @@ def scene_detail(scene_id: str) -> SceneDetail:
             source_stats=compute_stats(src.data, src.valid_mask),
             reference_stats=compute_stats(ref.data, ref.valid_mask),
             predicted_footprint=predict_footprint(src.info, ref.info, meta),
+            overlap_estimate=estimate_overlap(src.info, ref.info, meta, ref.valid_mask, defaults.guided, defaults.validation),
         ).model_dump()
         with _detail_lock:
             _detail_cache[key] = cached
@@ -161,11 +171,35 @@ def default_config() -> dict:
     return config.PipelineConfig().model_dump()
 
 
+@router.get("/api/matchers", response_model=list[MatcherStatus])
+def matchers() -> list[MatcherStatus]:
+    """What can really run on this machine: installed packages and weights on disk, checked per request."""
+    return matcher_statuses()
+
+
+@router.get("/api/benchmarks")
+def benchmarks() -> dict:
+    """Benchmark results exactly as the scripts wrote them; empty until a script has run."""
+
+    def read(name: str) -> dict | None:
+        path = config.RESULTS_ROOT / name
+        return json.loads(path.read_text(encoding="utf-8")) if path.is_file() else None
+
+    return {
+        "matchers": read("matcher_benchmark.json"),
+        "notes": read("matcher_benchmark_notes.json"),
+        "representations": read("representation_benchmark.json"),
+        "synthetic": read("synthetic_validation.json"),
+    }
+
+
 @router.post("/api/register/upload", response_model=JobState, status_code=202)
 def register_upload(
     source: UploadFile = File(..., description="Source image (GeoTIFF/TIFF)"),
     reference: UploadFile = File(..., description="Reference image (GeoTIFF/TIFF)"),
     xml: UploadFile | None = File(None, description="Optional Chandrayaan-2 product XML"),
+    matcher: str = Form("SIFT", description="SIFT, SUPERPOINT_LIGHTGLUE, LOFTR, RIFT or AUTO"),
+    representation: str | None = Form(None, description="Image representation; default depends on the matcher"),
 ) -> JobState:
     """Register two uploaded rasters. Uploads are stored under results/uploads/, never in data/."""
     for upload, kinds in ((source, (".tif", ".tiff")), (reference, (".tif", ".tiff"))):
@@ -190,12 +224,30 @@ def register_upload(
         meta = parse_scene_xml(paths["xml"]) if "xml" in paths else None
     except Exception as exc:
         raise HTTPException(status_code=400, detail=f"Could not read the uploaded files: {exc}") from exc
-    cfg = config.PipelineConfig()
+    overrides: dict = {"matcher": matcher}
+    if representation:
+        overrides["preprocessing_modes"] = [representation]
+        overrides["guided"] = {"representation": representation}
+    try:
+        cfg = merge_config(overrides)
+        _require_runnable(cfg)
+    except ValidationError as exc:
+        raise HTTPException(status_code=422, detail=json.loads(exc.json())) from exc
 
     def run(out: Path, progress):
         return register(src, ref, cfg, metadata=meta, out_dir=out, progress=progress)
 
     return jobs.submit(f"upload-{Path(source.filename or 'source').stem}", None, run)
+
+
+def _require_runnable(cfg: config.PipelineConfig) -> None:
+    """Refuse a request for a matcher that cannot run, rather than silently running another one."""
+    if cfg.matcher == "AUTO":
+        return
+    status = next((s for s in matcher_statuses(cfg) if s.name == cfg.matcher), None)
+    if status is None or not (status.available or status.needs_download):
+        reason = status.reason if status is not None else "unknown matcher"
+        raise HTTPException(status_code=409, detail=f"{cfg.matcher} is not available: {reason}")
 
 
 @router.post("/api/register/{scene_id}", response_model=JobState, status_code=202)
@@ -206,6 +258,7 @@ def register_official_scene(scene_id: str, overrides: dict | None = Body(default
         cfg = merge_config((overrides or {}).get("config", overrides))
     except ValidationError as exc:
         raise HTTPException(status_code=422, detail=json.loads(exc.json())) from exc
+    _require_runnable(cfg)
 
     def run(out: Path, progress):
         return register_scene(scene, cfg, out, progress)
@@ -261,3 +314,65 @@ def get_artifact(job_id: str, name: str) -> FileResponse:
     if not path.is_file():
         raise HTTPException(status_code=404, detail="Unknown artifact")
     return FileResponse(path)
+
+
+@router.get("/api/results/{job_id}/download")
+def download_job(job_id: str) -> StreamingResponse:
+    """Every deliverable of a job as one ZIP archive."""
+    state = _job_or_404(job_id)
+    if state.state not in ("done", "error"):
+        raise HTTPException(status_code=409, detail="This job has not finished yet")
+    directory = store.job_dir(job_id)
+    if not directory.is_dir():
+        raise HTTPException(status_code=404, detail="This job has no stored files")
+    headers = {"Content-Disposition": f'attachment; filename="{job_id}.zip"'}
+    return StreamingResponse(zip_job(directory), media_type="application/zip", headers=headers)
+
+
+@router.get("/api/results/{job_id}/chip")
+def image_chip(
+    job_id: str,
+    which: Literal["source", "reference"],
+    x: float,
+    y: float,
+    size: int = Query(320, ge=32, le=640),
+    zoom: int = Query(4, ge=1, le=8),
+    rectify: bool = False,
+) -> Response:
+    """A magnified piece of an original raster, for picking control points precisely.
+
+    Pixel (u, v) of the chip shows original pixel ``c + (u - (size - 1) / 2) / zoom``. With ``rectify``
+    the source is shown in the reference orientation, using only the rotation and scale of the stored
+    transformation and never its position, so a picked point is not led towards the model's answer.
+    """
+    _job_or_404(job_id)
+    data = store.load_result(job_id)
+    if data is None:
+        raise HTTPException(status_code=404, detail="This job has no stored result")
+    path = Path(data[which]["path"])
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="The original raster is no longer available")
+    linear = np.eye(2) * zoom
+    if rectify and which == "source":
+        transformation = data.get("transformation")
+        if transformation is None:
+            raise HTTPException(status_code=409, detail="This run has no transformation to take an orientation from")
+        linear = np.asarray(transformation["matrix"], dtype=np.float64)[:2, :2] * zoom
+    return Response(content=render_chip(path, x, y, size, linear), media_type="image/png")
+
+
+class ControlPointRequest(BaseModel):
+    provenance: str
+    points: list[ControlPoint] | None = None
+    csv: str | None = None
+
+
+@router.post("/api/results/{job_id}/control-points", response_model=ControlPointEvaluation)
+def post_control_points(job_id: str, body: ControlPointRequest) -> ControlPointEvaluation:
+    """Evaluate a finished registration against independent points. They are never used in a fit."""
+    _job_or_404(job_id)
+    try:
+        points = body.points if body.points else parse_control_points(body.csv or "")
+        return add_control_points(job_id, points, body.provenance)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc

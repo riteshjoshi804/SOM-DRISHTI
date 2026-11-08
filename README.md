@@ -6,9 +6,10 @@ Smart India Hackathon 2026 · Problem statement **SIH26166** · ISRO / Departmen
 > Multi-modal, Sun-angle and scale invariant image correspondence using Chandrayaan-2
 > optical images (OHRC, TMC and IIRS).
 
-This repository is the **classical MVP**: SIFT features, ratio-test matching and robust
-geometry, run on the official sample dataset supplied by the problem-statement mentor.
-Every number it reports is measured. When registration fails, it says so.
+Three independent matchers (classical SIFT, SuperPoint + LightGlue, LoFTR) feed one verification
+and one report, on the official sample dataset supplied by the problem-statement mentor. Every
+number it reports is measured. When registration fails, it says so, and the classical pipeline
+stays available as a fixed baseline.
 
 ---
 
@@ -20,11 +21,13 @@ that registration is:
 
 1. discover the official source / reference / XML triplets,
 2. parse the XML metadata and load the rasters with their original values,
-3. find SIFT correspondences and reject wrong ones with robust geometry,
-4. estimate and validate a source → reference transformation (affine or homography),
-5. warp the source into the reference grid and render overlays,
-6. compute real metrics and a SUCCESS / LOW_CONFIDENCE / FAILED status with reasons,
-7. expose all of it through a FastAPI backend and a React interface.
+3. find correspondences with the chosen matcher, or compare all of them (AUTO),
+4. estimate and validate a source → reference mapping with robust geometry,
+5. select spatially balanced tie points and refine them to sub-pixel positions,
+6. warp the source into the reference grid and render overlays,
+7. measure geometric consistency, held-out error and, if supplied, independent control-point
+   error, keeping the three apart, and assign SUCCESS / LOW_CONFIDENCE / FAILED with reasons,
+8. expose all of it through a FastAPI backend and a React interface, with downloadable outputs.
 
 ## 2. Official sample dataset
 
@@ -57,33 +60,67 @@ are documented in [docs/engineering_findings.md](docs/engineering_findings.md).
 
 ## 3. Pipeline
 
-### OHRC → LRO-NAC
+```
+source + reference + XML
+   |
+   |-- XML/GCP search prior: orientation, scale, rough position (lunar CRS checked, whole-image fallback)
+   |
+   |-- SIFT / RootSIFT ---------- KNN + Lowe ratio test ------------------+
+   |-- SuperPoint + LightGlue --- LightGlue confidence + appearance check |-- one verification:
+   |-- LoFTR (detector-free) ---- LoFTR confidence + appearance check ----+   MAGSAC/RANSAC, plausibility,
+   |-- RIFT (experimental) ------ descriptor similarity + appearance -----+   decoy controls, strip model
+   |
+   |-- AUTO compares accepted results by coverage, held-out error, inlier ratio, RMSE, time (never match count)
+   |
+   |-- tie points: duplicates, confidence ranking, ANMS, per-cell cap (cells are never filled)
+   |-- sub-pixel refinement: gradient NCC with ambiguity and validity checks; initial coordinates kept
+   |-- validation: held-out split and unseen blocks; control points if supplied; synthetic suite
+   |
+   +-- registered GeoTIFF, previews, overlays, CSV tables, JSON, scientific report
+```
 
-1. **Load** with Rasterio; build a valid-pixel mask (NoData, NaN/Inf, zero fill touching the border).
-2. **Represent** each image three ways: `raw_normalized` (1–99 % percentile stretch),
-   `clahe`, `gradient`. None of these removes real shadow differences; they are tested, not trusted.
-3. **SIFT** per 768 px tile (3000 keypoints per tile, contrastThreshold 0.02) inside an
-   eroded valid mask; RootSIFT descriptors. Images are never resized to each other.
-4. **Match** source → reference with brute-force 2-NN, Lowe ratio 0.90, one-to-one filter.
-5. **Verify**: affine RANSAC seed on the most distinctive matches, then expansion over all
-   ratio-filtered matches near the seed (MAGSAC, 3 px). Homography only when clearly better.
-6. **Mirrored source**: if the delivered source gives no accepted geometry, retry it flipped left-right.
-7. **Pool** the candidates of all representations if none alone reaches SUCCESS.
-8. **Validate** the transform (determinant, scale, anisotropy, shear, perspective, footprint inside reference).
-9. **Warp** with `cv2.warpAffine` / `cv2.warpPerspective`; write PNG previews, a colour overlay
-   and a GeoTIFF with the original source values on the reference grid.
+### Classical branch (the fixed baseline)
 
-### IIRS → LRO-WAC
+SIFT per 768 px tile inside an eroded valid mask, RootSIFT, brute-force 2-NN, Lowe ratio 0.90, one-to-one
+filter, affine seed plus expansion (MAGSAC, 3 px), a mirrored retry, and pooling across representations.
+Its results are checked against the stored baseline with `scripts/check_sift_regression.py`.
 
-Same engine. The float32 radiance is percentile-normalised on valid pixels only (never
-cast to uint8), and **all three representations are always evaluated** so the benchmark
-shows which one gives the strongest valid geometry – or that none does.
+### Learned branches
+
+Learned matchers are not rotation invariant and do not expect one image to be a small part of the other,
+and the official scenes are rotated up to 118° and sit kilometres from their metadata position. So:
+
+1. **Search prior.** The XML/GCP footprint gives orientation, scale and rough position, plus a 180° alternative
+   because one scene is reversed relative to its GCPs. The CRS is read from the reference's own WKT; a non-lunar
+   body, no CRS or an implausible scale disables the prior, and the whole reference is searched in every orientation.
+2. **Anchor sweep.** A source tile, rotated into the reference frame, slides over the search region at reduced
+   resolution. A translation vote finds the right window, and another independent tile must confirm it.
+3. **Tile passes.** All tiles are matched at full resolution, in three passes that re-centre on the improving model.
+   Window positions are jittered so that position bias cannot look like agreement. Tile coordinates map back
+   to original pixels exactly, including LoFTR's half-pixel convention.
+4. **Appearance check.** Gradient-magnitude patches at the two points must correlate. This is independent of the
+   matcher and removes look-alike craters and matches inside black shadow before any geometry is estimated.
+5. **Strip model.** A smooth along-track model is adopted only if it predicts stretches left out of its fit better
+   than a global transformation; a very stiff one is exactly an affine.
+6. **Decoy controls.** The final pass is repeated on known-wrong ground, and the result must exceed that by a factor of 3.
+
+The reasoning and measurements behind each step are in [docs/engineering_findings.md](docs/engineering_findings.md).
 
 ## 4. Technology stack
 
-Python 3.11+ (developed on 3.13) · FastAPI · Uvicorn · Pydantic · OpenCV (SIFT, RANSAC,
-USAC_MAGSAC) · NumPy · SciPy · Rasterio (bundled GDAL) · PyProj · React 19 · Vite 7 ·
-Tailwind CSS 4. No API keys and no external services.
+Python 3.11+ (developed on 3.13) · FastAPI · Uvicorn · Pydantic · OpenCV (SIFT, RANSAC, USAC_MAGSAC) · NumPy ·
+SciPy · Rasterio (bundled GDAL) · PyProj · React 19 · Vite 7 · Tailwind CSS 4. No API keys and no external services.
+
+Learned matchers (optional): PyTorch · Kornia (LightGlue, LoFTR) · Hugging Face Transformers (SuperPoint). They use a
+CUDA GPU if there is one and otherwise the CPU; only the CPU path has actually been run so far.
+
+| Weights | Source | Licence |
+|---|---|---|
+| SuperPoint | Hugging Face `magic-leap-community/superpoint` (Magic Leap) | **Academic or non-profit noncommercial research use only** |
+| LightGlue for SuperPoint | Hugging Face `kornia/lightglue`, falling back to the `cvg/LightGlue` release | Apache-2.0 |
+| LoFTR outdoor | Hugging Face `kornia/loftr`, falling back to the authors' mirror | Apache-2.0 |
+
+Weights are not in Git. They download once to `models/` on first use.
 
 ## 5. Installation (Windows, PowerShell, VS Code)
 
@@ -112,7 +149,16 @@ cd ..
 npm 11 may print `allow-scripts ... esbuild (postinstall)`. It can be ignored – esbuild's
 Windows binary is installed as a normal dependency and the build works without that script.
 
-Optional: copy `.env.example` to `.env` to change the data or results folder.
+Learned matchers (optional; everything else runs without them):
+
+```powershell
+.venv\Scripts\python.exe -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+.venv\Scripts\python.exe -m pip install -r backend\requirements-learned.txt
+```
+
+For a CUDA GPU, take the matching PyTorch build from https://pytorch.org/get-started/locally/ instead.
+
+Optional: copy `.env.example` to `.env` to change the data, results or models folder.
 
 ## 6. Running
 
@@ -125,28 +171,41 @@ metadata-predicted footprint):
 .venv\Scripts\python.exe scripts\inspect_dataset.py --json results\dataset_inspection.json
 ```
 
-**Register one scene** (default: OHRC 2359602, the demonstration case; any unique part of a scene ID works):
+**Register one scene** (default: OHRC 2359602 with SIFT; any unique part of a scene ID works):
 
 ```powershell
 .venv\Scripts\python.exe scripts\run_registration.py
-.venv\Scripts\python.exe scripts\run_registration.py --scene 2359602
+.venv\Scripts\python.exe scripts\run_registration.py --scene 2470502 --matcher LOFTR
+.venv\Scripts\python.exe scripts\run_registration.py --scene 2470502 --matcher AUTO
 .venv\Scripts\python.exe scripts\run_registration.py --scene 2736702 --modes clahe --ratio 0.85 --model homography
 ```
 
-Artifacts go to `results/jobs/<scene_id>__<timestamp>/`: `result.json`, `source.jpg`,
-`reference.jpg`, `keypoints_*.jpg`, `raw_matches.jpg`, `inlier_matches.jpg`,
-`spatial_coverage.jpg`, `reference_footprint.jpg`, and – only for an accepted
-transformation – `registered_source.png`, `overlay.png`, `registered_source.tif`.
+Artifacts go to `results/jobs/<scene_id>__<timestamp>/`:
 
-**Benchmarks**:
+| Group | Files |
+|---|---|
+| Images | `source.jpg`, `reference.jpg`, `reference_footprint.jpg`, `raw_matches.jpg`, `inlier_matches.jpg`, `spatial_coverage.jpg`, `tie_points.jpg`, `keypoints_*.jpg` (SIFT) |
+| Accepted result only | `registered_source.tif` (original values, reference grid), `registered_source.png`, `overlay.png`, `checkerboard.jpg`, `reference_crop.jpg` + `registered_crop.png` (alpha overlay) |
+| Tables | `correspondences_raw.csv`, `correspondences_inliers.csv`, `tie_points_selected.csv`, `tie_points_refined.csv` |
+| Documents | `transformation.json`, `metadata_summary.json`, `metrics.json`, `benchmark_row.csv`, `report.md`, `report.html`, `result.json` |
+| Other matchers (AUTO) | `<matcher>__overlay.png`, `<matcher>__inlier_matches.jpg`, `<matcher>__*.csv` |
+
+**Benchmarks** (each scene also becomes a normal job, visible in the web interface):
 
 ```powershell
-.venv\Scripts\python.exe scripts\benchmark_ohrc.py     # -> results\ohrc_benchmark.csv
-.venv\Scripts\python.exe scripts\benchmark_iirs.py     # -> results\iirs_benchmark.csv
+.venv\Scripts\python.exe scripts\benchmark_matchers.py          # -> results\matcher_benchmark.csv/.json, results\benchmark_charts\
+.venv\Scripts\python.exe scripts\benchmark_representations.py   # -> results\representation_benchmark.json
+.venv\Scripts\python.exe scripts\synthetic_validation.py        # -> results\synthetic_validation.csv/.json (not lunar data)
+.venv\Scripts\python.exe scripts\refinement_study.py            # -> results\refinement_study.json (not lunar data)
+.venv\Scripts\python.exe scripts\write_benchmark_report.py      # -> docs\benchmark_matchers.md
+
+# The classical baseline, and a check that it has not changed
+.venv\Scripts\python.exe scripts\benchmark_ohrc.py --out results\regression\ohrc_benchmark.csv --no-geotiff
+.venv\Scripts\python.exe scripts\benchmark_iirs.py --out results\regression\iirs_benchmark.csv --no-geotiff
+.venv\Scripts\python.exe scripts\check_sift_regression.py
 ```
 
-Each also writes `*_attempts.csv` (every representation / orientation tried) and a `.json`
-with the exact configuration used.
+A complete matcher benchmark takes hours on a CPU. It saves after every scene.
 
 **Backend** (http://127.0.0.1:8000, interactive docs at `/docs`):
 
@@ -183,12 +242,17 @@ npm.cmd run build
 | GET | `/api/scenes` | discovered scenes with key metadata |
 | GET | `/api/scenes/{scene_id}` | full XML metadata, raster info, statistics, histograms, predicted footprint |
 | GET | `/api/scenes/{scene_id}/preview/{source\|reference}` | percentile-stretched preview JPEG |
-| POST | `/api/register/{scene_id}` | start a registration job (optional body `{"config": {...}}` with partial overrides) |
+| POST | `/api/register/{scene_id}` | start a registration job (optional body `{"config": {...}}` with partial overrides, e.g. `{"config": {"matcher": "AUTO"}}`). A matcher that cannot run gives 409, never a silent substitute |
 | POST | `/api/register/upload` | register an uploaded source/reference (+ optional XML); stored under `results/uploads/` |
 | GET | `/api/results` | all jobs, including those produced by the scripts |
 | GET | `/api/results/{job_id}` | job state/progress, and the full result when done |
 | GET | `/api/results/{job_id}/metrics` | status, reasons and metrics only |
 | GET | `/api/results/{job_id}/artifacts/{name}` | an artifact image / GeoTIFF / result.json |
+| GET | `/api/results/{job_id}/download` | every deliverable of a job as one ZIP |
+| GET | `/api/results/{job_id}/chip` | a magnified piece of an original raster, for picking control points |
+| POST | `/api/results/{job_id}/control-points` | evaluate a finished result against independent points; never used in a fit |
+| GET | `/api/matchers` | what can really run here: packages, weights, device, licences |
+| GET | `/api/benchmarks` | stored benchmark results; empty until a script has run |
 | GET | `/api/config/default` | the default pipeline configuration |
 
 ## 7. Results on the official sample data

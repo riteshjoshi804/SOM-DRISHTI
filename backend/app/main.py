@@ -19,8 +19,8 @@ from app.ingestion.indexer import discover_scenes
 
 app = FastAPI(
     title="SOM DRISHTI",
-    description="Lunar image correspondence & registration (SIH26166) - classical SIFT MVP",
-    version="0.1.0",
+    description="Lunar image correspondence & registration (SIH26166): SIFT, SuperPoint + LightGlue, LoFTR",
+    version="0.2.0",
 )
 
 origins = [o.strip() for o in os.environ.get("SOM_DRISHTI_CORS_ORIGINS", "http://localhost:5173").split(",") if o.strip()]

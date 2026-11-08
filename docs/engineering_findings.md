@@ -81,4 +81,104 @@ For every accepted registration the image-based rotation agrees with the XML/GCP
 prediction to within 1.7° (after accounting for the 180° array reversal of 2359602),
 but the footprint position differs by **2.3–6 km** for OHRC and ~19 km for the IIRS
 polar strip. The XMLs state `ReferenceUsed = System`, i.e. system-level pointing. This
-is why the metadata is only used as a plausibility report and never to guide matching.
+was why the classical MVP used the metadata only as a plausibility report and never to
+guide matching. The learned matchers use it as a search prior (section 6).
+
+## 6. Learned matchers: what was measured while building them
+
+Exploratory measurements, on scene 2470502 unless stated, from the probes in
+`results/dev_probes/`. The final figures are in [benchmark_results.md](benchmark_results.md).
+
+### 6.1 Why a search strategy is needed at all
+
+| Attempt | Result |
+|---|---|
+| SP+LG with reference windows ±1400 px around the metadata position | 77 candidates, none within 30 px of the SIFT model, no consensus |
+| LoFTR at 1/4 resolution against a whole window | 380 candidates, none within 12 px of the SIFT model, no consensus |
+| Alignment known, small window (best case) | LoFTR on CLAHE: 806 matches within 3 px. SP+LG: 48. SIFT's whole result: 19 inliers |
+| LoFTR, half resolution, equal field of view | 26 % true matches; a window 1.5 × larger: 4 %; 1/3 and 1/4 resolution: about 0 % |
+
+So matching needs the right orientation, roughly the right position, and similar fields of view.
+Hence the design: rotate each source tile into the reference frame using the metadata (and the
+180° alternative), slide it over the search region, and let a translation vote find the right
+window. On this scene three independent tiles agreed on an offset 5.2 km from the metadata
+position, with vote peaks of 14–37 against a background median of 3.
+
+### 6.2 The 125-inlier decoy was a bug, and what decoys really show
+
+The first decoy control scored 125 inliers on ground known to be wrong. Reproducing it with the same
+shift and windows gave 124, with 123 of them in one tile, and **all 124 lie within 10 px of the real
+model**. Windows that left the raster had been pushed back inside it, onto their true ground. These
+were correct matches leaking into a null test. With strict windows the same shift gives 7 inliers,
+none within 150 px of the real model. Decoy windows are now never moved, and may not touch the
+true location.
+
+With that fixed, each suspected cause of false inliers was tested on saved candidates:
+
+| Suspected cause | Evidence | Verdict |
+|---|---|---|
+| Permissive threshold | 1 to 12 px: real 531 → 758 inliers; decoys stay at 0–20 | Not the cause |
+| Model flexibility | Similarity, affine, homography: 3–10 on every decoy with a consensus | Not the cause |
+| Weak spatial distribution | Decoy inliers fall in 2–6 grid cells; real ones in 9 | Not the cause, but see 6.4 |
+| Incorrect correspondences | Montages: a crater paired with a different crater of similar size, and black shadow paired with dark terrain | **The mechanism** |
+
+The expected-chance formula gives about 0.08 inliers here, far below the measured 6–15, because it
+ignores the search over models. Measured nulls are therefore the test used for learned matchers, and
+the old limit of 12 inliers cannot apply to them.
+
+### 6.3 A matcher-independent check separates true from false matches
+
+Zero-mean correlation of the *gradient magnitude* of 31 px patches at the matched points:
+
+| Set | Median | 10th–90th percentile | Above 0.3 |
+|---|---:|---:|---:|
+| Real inliers | +0.655 | +0.477 … +0.787 | 98 % |
+| Decoy inliers | +0.073 | −0.047 … +0.268 | 8 % |
+| All decoy candidates | +0.047 | −0.075 … +0.242 | 6 % |
+
+Gradient magnitude ignores the sign of the contrast, which a changed Sun can reverse, and black
+patches have nothing to compare. With a threshold of 0.3, applied before any geometry: accepted
+candidates fell from 2 803 to 907, the inlier ratio rose from 21 % to 60 %, real inliers fell only from
+590 to 548, and decoys fell from 8–9 inliers to 0–4. Anchor votes became far cleaner as well (46 votes
+against a runner-up of 1).
+
+### 6.4 The anisotropy of 3.09 was not physical
+
+The strip model was rejected for a local anisotropy of about 3.2. Looking inside: `dy'/dy` was about 1.02
+over the supported part of the strip and jumped to 3.06 at both unsupported ends, identically for every
+smoothness from 1 to 1e6. Inside the supported part anisotropy was 1.16, a plausible value. The cause
+was the spline itself: with knots clamped at the ends, a straight line does not have evenly spaced
+coefficients, so the second-difference penalty forces a steep slope wherever no data push back.
+Uniform knots extending past the ends fix it (1.13). An earlier guess that the cross-track term was to
+blame was wrong.
+
+A separate weakness: one tile with hundreds of matches decided the whole fit, and on the real ground
+724 of 731 inliers of a global affine came from one tile. The strip fit now balances along-track groups
+(total weight grows with the square root of the count), and the model is chosen by how well it predicts
+along-track blocks left out of its fit (8.6 px against 20.0 px for the global affine on this scene) and
+not by inlier count, which rewards a single dense cluster.
+
+The measured deviation from one affine is real on this scene, reaching over 100 px. Its cause has
+**not been established**: pushbroom attitude variation is a hypothesis; terrain relief and the
+resampling of the delivered products have not been ruled out.
+
+### 6.5 Refinement can make things worse, and correlation does not show it
+
+On rendered terrain with exactly known truth (`scripts/refinement_study.py`, synthetic):
+
+| Case, median error against truth (px) | Initial | Gradient + NCC | Intensity + NCC |
+|---|---:|---:|---:|
+| Same Sun | 0.24 | 0.10 | 0.08 |
+| Noise, sigma 5 % | 0.37 | 0.17 | 0.12 |
+| Blur, sigma 1.5 px | 0.53 | 0.30 | 0.18 |
+| Sun lowered from 25° to 5° | 0.60 | 0.34 | 0.36 |
+| Sun azimuth moved by 90° | 1.78 | too few pass | **4.56** |
+
+Refinement on plain intensity can pull points 4.5 px in one direction under a Sun change, with its
+correlation still high, because the peak follows the shading. Hence gradient magnitude by default, and
+a check that needs no truth: noise correction moves points in scattered directions, this failure moves
+them together. Such a shift is flagged, and the model is not refitted on those points. **Sub-pixel
+accuracy cannot be claimed where the Sun differs strongly.**
+
+The same study shows the limit of the matcher: with the Sun moved by 90° LoFTR found 15 correct
+matches in the whole rendered scene, and with the opposite Sun none.
